@@ -2,48 +2,67 @@ const dataUrl = "https://2u-data-curriculum-team.s3.amazonaws.com/dataviz-classr
 
 let data;
 
-const getData = async () => {
-  data = await d3.json(dataUrl);
-};
+function getData() {
+  return d3.json(dataUrl)
+    .then((jsonData) => {
+      data = jsonData;
+    })
+    .catch((error) => {
+      console.error("Error fetching data:", error);
+    });
+}
 
 const createDropdown = () => {
   const dropdownMenu = d3.select("#selDataset");
-  const { names } = data;
-  names.forEach((id) => dropdownMenu.append("option").text(id).property("value", id));
+  const testIds = data.names;
+  testIds.forEach((id) => {
+    dropdownMenu
+      .append("option")
+      .text(id)
+      .property("value", id);
+  });
 };
 
 const createDemographicInfo = (subject) => {
-  const { metadata } = data;
-  const result = metadata.find(({ id }) => id == subject);
+  const metaData = data.metadata;
+  const result = metaData.find((sampleObject) => sampleObject.id == subject);
   const demographicPanel = d3.select("#sample-metadata");
   demographicPanel.html("");
-  Object.entries(result).forEach(([key, value]) => demographicPanel.append("h6").text(`${key}: ${value}`));
+  Object.entries(result).forEach(([key, value]) => {
+    demographicPanel.append("h6").text(`${key}: ${value}`);
+  });
 };
 
 const createCharts = (subject) => {
-  const { samples } = data;
-  const { sample_values, otu_ids, otu_labels } = samples.find(({ id }) => id == subject);
+  const samples = data.samples;
+  const sampleValues = samples.find((sampleObject) => sampleObject.id == subject).sample_values;
+  const otuIds = samples.find((sampleObject) => sampleObject.id == subject).otu_ids;
+  const otuLabels = samples.find((sampleObject) => sampleObject.id == subject).otu_labels;
 
-  const barData = [{
-    x: sample_values.slice(0, 10).reverse(),
-    y: otu_ids.slice(0, 10).map((id) => `OTU ${id}`).reverse(),
-    text: otu_labels.slice(0, 10).reverse(),
-    type: "bar",
-    orientation: "h",
-  }];
+  const barData = [
+    {
+      x: sampleValues.slice(0, 10).reverse(),
+      y: otuIds.slice(0, 10).map((otuId) => `OTU ${otuId}`).reverse(),
+      text: otuLabels.slice(0, 10).reverse(),
+      type: "bar",
+      orientation: "h",
+    },
+  ];
 
   Plotly.newPlot("bar", barData);
 
-  const bubbleData = [{
-    x: otu_ids,
-    y: sample_values,
-    text: otu_labels,
-    mode: "markers",
-    marker: {
-      color: otu_ids,
-      size: sample_values,
+  const bubbleData = [
+    {
+      x: otuIds,
+      y: sampleValues,
+      text: otuLabels,
+      mode: "markers",
+      marker: {
+        color: otuIds,
+        size: sampleValues,
+      },
     },
-  }];
+  ];
 
   const bubbleLayout = {
     xaxis: { title: "OTU ID" },
@@ -58,13 +77,11 @@ const optionChanged = (newSample) => {
   createDemographicInfo(newSample);
 };
 
-const main = () => {
-  return getData()
-    .then(() => {
-      createDropdown();
-      createDemographicInfo(data.names[0]);
-      createCharts(data.names[0]);
-    });
+const main = async () => {
+  await getData();
+  createDropdown();
+  createDemographicInfo(data.names[0]);
+  createCharts(data.names[0]);
 };
 
 main();
